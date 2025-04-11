@@ -1,0 +1,103 @@
+#include <WiFi.h>
+#include <WebServer.h>
+
+// Set your ESP32 as an Access Point (Hotspot)
+const char* ssid = "ESP32_Car";
+const char* password = "12345678";
+
+WebServer server(80);
+
+// Define motor pins
+#define MOTOR1_IN1  27
+#define MOTOR1_IN2  26
+#define MOTOR2_IN1  25
+#define MOTOR2_IN2  33
+
+void setup() {
+  Serial.begin(115200);
+  
+  pinMode(MOTOR1_IN1, OUTPUT);
+  pinMode(MOTOR1_IN2, OUTPUT);
+  pinMode(MOTOR2_IN1, OUTPUT);
+  pinMode(MOTOR2_IN2, OUTPUT);
+
+  WiFi.softAP(ssid, password);
+  Serial.println("ESP32 Car Hotspot Created!");
+  Serial.println(WiFi.softAPIP());  // Print ESP32 IP Address
+
+  // Create Web Interface
+  server.on("/", []() {
+    server.send(200, "text/html", R"rawliteral(
+      <html>
+      <head>
+        <title>ESP32 Car Control</title>
+        <style>
+          button { padding: 15px 30px; font-size: 20px; margin: 10px; }
+        </style>
+        <script>
+          function sendCommand(cmd) {
+            fetch("/" + cmd);
+          }
+        </script>
+      </head>
+      <body>
+        <h2>ESP32 Car Control</h2>
+        <button onclick="sendCommand('forward')">Forward</button>
+        <button onclick="sendCommand('backward')">Backward</button><br>
+        <button onclick="sendCommand('left')">Left</button>
+        <button onclick="sendCommand('right')">Right</button><br>
+        <button onclick="sendCommand('stop')">Stop</button>
+      </body>
+      </html>
+    )rawliteral");
+  });
+
+  // Define button actions
+  server.on("/forward", []() { moveForward(); server.send(200, "text/plain", "Moving Forward"); });
+  server.on("/backward", []() { moveBackward(); server.send(200, "text/plain", "Moving Backward"); });
+  server.on("/left", []() { turnLeft(); server.send(200, "text/plain", "Turning Left"); });
+  server.on("/right", []() { turnRight(); server.send(200, "text/plain", "Turning Right"); });
+  server.on("/stop", []() { stopMotors(); server.send(200, "text/plain", "Stopped"); });
+
+  server.begin();
+}
+
+// Motor Control Functions
+void moveForward() {
+  digitalWrite(MOTOR1_IN1, HIGH);
+  digitalWrite(MOTOR1_IN2, LOW);
+  digitalWrite(MOTOR2_IN1, HIGH);
+  digitalWrite(MOTOR2_IN2, LOW);
+}
+
+void moveBackward() {
+  digitalWrite(MOTOR1_IN1, LOW);
+  digitalWrite(MOTOR1_IN2, HIGH);
+  digitalWrite(MOTOR2_IN1, LOW);
+  digitalWrite(MOTOR2_IN2, HIGH);
+}
+
+void turnLeft() {
+  digitalWrite(MOTOR1_IN1, LOW);
+  digitalWrite(MOTOR1_IN2, HIGH);
+  digitalWrite(MOTOR2_IN1, HIGH);
+  digitalWrite(MOTOR2_IN2, LOW);
+}
+
+void turnRight() {
+  digitalWrite(MOTOR1_IN1, HIGH);
+  digitalWrite(MOTOR1_IN2, LOW);
+  digitalWrite(MOTOR2_IN1, LOW);
+  digitalWrite(MOTOR2_IN2, HIGH);
+}
+
+void stopMotors() {
+  digitalWrite(MOTOR1_IN1, LOW);
+  digitalWrite(MOTOR1_IN2, LOW);
+  digitalWrite(MOTOR2_IN1, LOW);
+  digitalWrite(MOTOR2_IN2, LOW);
+}
+
+void loop() {
+  server.handleClient();
+}
